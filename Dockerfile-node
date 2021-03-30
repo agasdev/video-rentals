@@ -1,0 +1,24 @@
+# Pull latest official node image
+FROM node:lts-alpine3.10
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 35729
+
+# Set working directory
+WORKDIR /var/www/frontend/
+
+# Add /frontend/node_modules/.bin to environment variables
+ENV PATH /frontend/node_modules/.bin:$PATH
+
+# Copy package files and install app dependencies
+COPY frontend/package.json /var/www/frontend/package.json
+COPY frontend/package-lock.json /var/www/frontend/package-lock.json
+RUN npm install
+RUN npm install react-scripts -g
+
+# Add React app to working directory
+ADD frontend/ /var/www/frontend
+
+# Start the React app
+CMD ["npm", "start"]
