@@ -4,3 +4,5 @@ App\Entity\Dvd:
             groups: ['dvd']
         title:
             groups: ['dvd']
+        image:
+            groups: ['dvd']
