@@ -2,7 +2,7 @@
 
 namespace App\Form;
 
-use App\Entity\Dvd;
+use App\Form\Model\DvdDto;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -14,14 +14,14 @@ class DvdFormType extends AbstractType
     {
         $builder
             ->add('title', TextType::class)
-//            ->add('image')
+            ->add('base64Image', TextType::class)
         ;
     }
 
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults([
-            'data_class' => Dvd::class,
+            'data_class' => DvdDto::class,
         ]);
     }
 
