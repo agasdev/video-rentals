@@ -3,10 +3,13 @@
 namespace App\Controller\Api;
 
 use App\Entity\Dvd;
+use App\Form\DvdFormType;
 use App\Repository\DvdRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 class DvdController extends AbstractFOSRestController
 {
@@ -26,15 +29,21 @@ class DvdController extends AbstractFOSRestController
      * @Rest\Post(path="/dvds")
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
      * @param EntityManagerInterface $entityManager
-     * @return Dvd
+     * @param Request $request
+     * @return Dvd|FormInterface
      */
-    public function postAction(EntityManagerInterface $entityManager): Dvd
+    public function postAction(EntityManagerInterface $entityManager, Request $request)
     {
         $oDvd = new Dvd();
-        $oDvd->setTitle('Example Dvd 3');
-        $entityManager->persist($oDvd);
-        $entityManager->flush();
+        $form = $this->createForm(DvdFormType::class, $oDvd);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $entityManager->persist($oDvd);
+            $entityManager->flush();
 
-        return $oDvd;
+            return $oDvd;
+        }
+
+        return $form;
     }
 }
