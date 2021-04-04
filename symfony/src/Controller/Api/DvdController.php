@@ -6,11 +6,11 @@ use App\Entity\Dvd;
 use App\Form\DvdFormType;
 use App\Form\Model\DvdDto;
 use App\Repository\DvdRepository;
+use App\Service\FileUploader;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use League\Flysystem\FilesystemException;
-use League\Flysystem\FilesystemOperator;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -33,27 +33,26 @@ class DvdController extends AbstractFOSRestController
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
      * @param EntityManagerInterface $entityManager
      * @param Request $request
-     * @param FilesystemOperator $defaultStorage
+     * @param FileUploader $fileUploader
      * @return Dvd|FormInterface
      * @throws FilesystemException
      */
     public function postAction(
         EntityManagerInterface $entityManager,
         Request $request,
-        FilesystemOperator $defaultStorage
+        FileUploader $fileUploader
     )
     {
         $oDvdDto = new DvdDto();
         $form    = $this->createForm(DvdFormType::class, $oDvdDto);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
-            $extension = explode('/', mime_content_type($oDvdDto->base64Image))[1];
-            $data      = explode(',', $oDvdDto->base64Image);
-            $filename  = sprintf('%s.%s', uniqid('dvd_', true), $extension);
-            $defaultStorage->write($filename, base64_decode($data[1]));
             $oDvd = new Dvd();
             $oDvd->setTitle($oDvdDto->title);
-            $oDvd->setImage($filename);
+            if ($oDvdDto->base64Image) {
+                $filename = $fileUploader->uploadBase64File($oDvdDto->base64Image);
+                $oDvd->setImage($filename);
+            }
             $entityManager->persist($oDvd);
             $entityManager->flush();
 
