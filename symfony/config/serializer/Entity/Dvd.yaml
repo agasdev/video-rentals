@@ -6,3 +6,5 @@ App\Entity\Dvd:
             groups: ['dvd']
         image:
             groups: ['dvd']
+        categories:
+            groups: ['dvd']
