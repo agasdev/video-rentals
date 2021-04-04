@@ -2,18 +2,12 @@
 
 namespace App\Controller\Api;
 
-use App\Entity\Category;
 use App\Entity\Dvd;
-use App\Form\Model\CategoryDto;
-use App\Form\Model\DvdDto;
-use App\Form\Type\DvdFormType;
-use App\Repository\CategoryRepository;
-use App\Repository\DvdRepository;
-use App\Service\FileUploader;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\DvdFormProcessor;
+use App\Service\DvdManager;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
+use FOS\RestBundle\View\View;
 use League\Flysystem\FilesystemException;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,121 +19,84 @@ class DvdController extends AbstractFOSRestController
     /**
      * @Rest\Get(path="/dvds")
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
-     * @param DvdRepository $dvdRepository
+     * @param DvdManager $dvdManager
      * @return array
      */
-    public function getAction(DvdRepository $dvdRepository): array
+    public function getAction(DvdManager $dvdManager): array
     {
-        return $dvdRepository->findAll();
+        return $dvdManager->getRepository()->findAll();
     }
 
     /**
      * @Rest\Post(path="/dvd")
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
-     * @param EntityManagerInterface $entityManager
+     * @param DvdManager $dvdManager
+     * @param DvdFormProcessor $dvdFormProcessor
      * @param Request $request
-     * @param FileUploader $fileUploader
-     * @return Dvd|FormInterface
+     * @return Dvd|FormInterface|mixed
      * @throws FilesystemException
      */
     public function postAction(
-        EntityManagerInterface $entityManager,
-        Request $request,
-        FileUploader $fileUploader
-    )
+        DvdManager $dvdManager,
+        DvdFormProcessor $dvdFormProcessor,
+        Request $request
+    ): View
     {
-        $oDvdDto = new DvdDto();
-        $form    = $this->createForm(DvdFormType::class, $oDvdDto);
-        $form->handleRequest($request);
-        if ($form->isSubmitted() && $form->isValid()) {
-            $oDvd = new Dvd();
-            $oDvd->setTitle($oDvdDto->title);
-            if ($oDvdDto->base64Image) {
-                $filename = $fileUploader->uploadBase64File($oDvdDto->base64Image);
-                $oDvd->setImage($filename);
-            }
-            $entityManager->persist($oDvd);
-            $entityManager->flush();
+        $oDvd = $dvdManager->create();
+        [$oDvd, $error] = ($dvdFormProcessor)($oDvd, $request);
+        $statusCode = $oDvd ? Response::HTTP_CREATED : Response::HTTP_BAD_REQUEST;
+        $data = $oDvd ?? $error;
 
-            return $oDvd;
-        }
-
-        return $form;
+        return View::create($data, $statusCode);
     }
 
     /**
      * @Rest\Post(path="/dvd/{id}", requirements={"id"="\d+"})
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
      * @param int $id
-     * @param EntityManagerInterface $entityManager
-     * @param DvdRepository $dvdRepository
-     * @param CategoryRepository $categoryRepository
+     * @param DvdFormProcessor $dvdFormProcessor
+     * @param DvdManager $dvdManager
      * @param Request $request
-     * @param FileUploader $fileUploader
-     * @return Dvd|FormInterface|Response
+     * @return View|mixed
      * @throws FilesystemException
      */
     public function editAction(
         int $id,
-        EntityManagerInterface $entityManager,
-        DvdRepository $dvdRepository,
-        CategoryRepository $categoryRepository,
-        Request $request,
-        FileUploader $fileUploader
-    )
+        DvdFormProcessor $dvdFormProcessor,
+        DvdManager $dvdManager,
+        Request $request
+
+    ): View
     {
-        $oDvd = $dvdRepository->find($id);
+        $oDvd = $dvdManager->find($id);
         if (!$oDvd) {
-            throw $this->createNotFoundException('Dvd not found');
+            return View::create('Dvd not found', Response::HTTP_BAD_REQUEST);
         }
-        $dvdDto             = DvdDto::createFromDvd($oDvd);
-        $originalCategories = new ArrayCollection();
-        foreach ($oDvd->getCategories() as $category) {
-            $categoryDto          = CategoryDto::createFromCategory($category);
-            $dvdDto->categories[] = $categoryDto;
-            $originalCategories->add($categoryDto);
+        [$oDvd, $error] = ($dvdFormProcessor)($oDvd, $request);
+        $statusCode = $oDvd ? Response::HTTP_CREATED : Response::HTTP_BAD_REQUEST;
+        $data = $oDvd ?? $error;
+
+        return View::create($data, $statusCode);
+    }
+
+    /**
+     * @Rest\Delete(path="/dvd/{id}", requirements={"id"="\d+"})
+     * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
+     * @param int $id
+     * @param DvdManager $dvdManager
+     * @return View|mixed
+     */
+    public function deleteAction(
+        int $id,
+        DvdManager $dvdManager
+    ): View
+    {
+        $oDvd = $dvdManager->find($id);
+        if (!$oDvd) {
+            return View::create('Dvd not found', Response::HTTP_BAD_REQUEST);
         }
+        $dvdManager->delete($oDvd);
 
-        $form = $this->createForm(DvdFormType::class, $dvdDto);
-        $form->handleRequest($request);
-
-        if (!$form->isSubmitted()) {
-            return new Response('', Response::HTTP_BAD_REQUEST);
-        }
-
-        if ($form->isValid()) {
-            // Remove categories
-            foreach ($originalCategories as $originalCategoryDto) {
-                if (!in_array($originalCategoryDto, $dvdDto->categories)) {
-                    $oCategory = $categoryRepository->find($originalCategoryDto->id);
-                    $oDvd->removeCategory($oCategory);
-                }
-            }
-
-            // Add categories
-            foreach ($dvdDto->categories as $newCategoryDto) {
-                if (!$originalCategories->contains($newCategoryDto)) {
-                    $oCategory = $categoryRepository->find($newCategoryDto->id ?? 0);
-                    if (!$oCategory) {
-                        $oCategory = new Category();
-                        $oCategory->setName($newCategoryDto->name);
-                        $entityManager->persist($oCategory);
-                    }
-                    $oDvd->addCategory($oCategory);
-                }
-            }
-            $oDvd->setTitle($dvdDto->title);
-            if ($dvdDto->base64Image) {
-                $filename = $fileUploader->uploadBase64File($dvdDto->base64Image);
-                $oDvd->setImage($filename);
-            }
-            $entityManager->persist($oDvd);
-            $entityManager->flush();
-            $entityManager->refresh($oDvd);
-
-            return $oDvd;
-        }
-
-        return $form;
+        return View::create(null, Response::HTTP_NO_CONTENT);
     }
 }
