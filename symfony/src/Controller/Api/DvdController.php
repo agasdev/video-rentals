@@ -67,7 +67,7 @@ class DvdController extends AbstractFOSRestController
             return View::create('Dvd not found', Response::HTTP_BAD_REQUEST);
         }
 
-        return View::create($oDvd, Response::HTTP_BAD_REQUEST);
+        return View::create($oDvd, Response::HTTP_OK);
     }
 
 

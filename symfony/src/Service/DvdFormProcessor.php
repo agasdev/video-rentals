@@ -6,7 +6,6 @@ use App\Entity\Dvd;
 use App\Form\Model\CategoryDto;
 use App\Form\Model\DvdDto;
 use App\Form\Type\DvdFormType;
-use Doctrine\Common\Collections\ArrayCollection;
 use League\Flysystem\FilesystemException;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -39,12 +38,9 @@ class DvdFormProcessor
      */
     public function __invoke(Dvd $oDvd, Request $request): array
     {
-        $dvdDto             = DvdDto::createFromDvd($oDvd);
-        $originalCategories = new ArrayCollection();
+        $dvdDto = DvdDto::createFromDvd($oDvd);
         foreach ($oDvd->getCategories() as $category) {
-            $categoryDto          = CategoryDto::createFromCategory($category);
-            $dvdDto->categories[] = $categoryDto;
-            $originalCategories->add($categoryDto);
+            $dvdDto->categories[] = CategoryDto::createFromCategory($category);
         }
 
         $form = $this->formFactory->create(DvdFormType::class, $dvdDto);
@@ -54,38 +50,30 @@ class DvdFormProcessor
             return [null, 'Form is not submitted'];
         }
 
-        if ($form->isValid()) {
-            // Remove categories
-            foreach ($originalCategories as $originalCategoryDto) {
-                if (!in_array($originalCategoryDto, $dvdDto->categories)) {
-                    $oCategory = $this->categoryManager->find($originalCategoryDto->id);
-                    $oDvd->removeCategory($oCategory);
-                }
-            }
-
-            // Add categories
-            foreach ($dvdDto->categories as $newCategoryDto) {
-                if (!$originalCategories->contains($newCategoryDto)) {
-                    $oCategory = $this->categoryManager->find($newCategoryDto->id ?? 0);
-                    if (!$oCategory) {
-                        $oCategory = $this->categoryManager->create();
-                        $oCategory->setName($newCategoryDto->name);
-                        $this->categoryManager->persist($oCategory);
-                    }
-                    $oDvd->addCategory($oCategory);
-                }
-            }
-            $oDvd->setTitle($dvdDto->title);
-            if ($dvdDto->base64Image) {
-                $filename = $this->fileUploader->uploadBase64File($dvdDto->base64Image);
-                $oDvd->setImage($filename);
-            }
-            $this->dvdManager->save($oDvd);
-            $this->dvdManager->reload($oDvd);
-
-            return [$oDvd, null];
+        if (!$form->isValid()) {
+            return [null, $form];
         }
 
-        return [null, $form];
+        $aCategories = [];
+        foreach ($dvdDto->categories as $newCategoryDto) {
+            $oCategory = $this->categoryManager->find($newCategoryDto->id ?? 0);
+            if (!$oCategory) {
+                $oCategory = $this->categoryManager->create();
+                $oCategory->setName($newCategoryDto->name);
+                $this->categoryManager->persist($oCategory);
+            }
+            $aCategories[] = $oCategory;
+        }
+
+        $filename = null;
+        if ($dvdDto->base64Image) {
+            $filename = $this->fileUploader->uploadBase64File($dvdDto->base64Image);
+
+        }
+        $oDvd->update($dvdDto->title, $filename, ...$aCategories);
+        $this->dvdManager->save($oDvd);
+        $this->dvdManager->reload($oDvd);
+
+        return [$oDvd, null];
     }
 }

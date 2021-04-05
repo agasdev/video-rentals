@@ -33,3 +33,17 @@ services:
     App\Security\TokenAuthenticator:
         arguments:
             $apiToken: '%api_token%'
+
+    admin.category:
+        class: App\Admin\CategoryAdmin
+        arguments: [~, App\Entity\Category, ~]
+        tags:
+            - { name: sonata.admin, manager_type: orm, group: admin, label: Category }
+        public: true
+
+    admin.dvd:
+        class: App\Admin\DvdAdmin
+        arguments: [~, App\Entity\Dvd, ~]
+        tags:
+            - { name: sonata.admin, manager_type: orm, group: admin, label: Dvd }
+        public: true
