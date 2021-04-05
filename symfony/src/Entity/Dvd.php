@@ -91,4 +91,39 @@ class Dvd
 
         return $this;
     }
+
+    public function updateCategories(Category ...$categories)
+    {
+        $originalCategories = new ArrayCollection();
+
+        foreach ($this->categories as $category) {
+            $originalCategories->add($category);
+        }
+
+        // Remove categories
+        foreach ($originalCategories as $originalCategory) {
+            if (!in_array($originalCategory, $categories)) {
+                $this->removeCategory($originalCategory);
+            }
+        }
+
+        // Add categories
+        foreach ($categories as $newCategory) {
+            if (!$originalCategories->contains($newCategory)) {
+                $this->addCategory($newCategory);
+            }
+        }
+    }
+
+    public function update(string $title, ?string $image, Category ...$categories)
+    {
+        $this->title = $title;
+        $this->image = $image;
+        $this->updateCategories(...$categories);
+    }
+
+    public function __toString(): string
+    {
+        return $this->title ?? 'Dvd';
+    }
 }

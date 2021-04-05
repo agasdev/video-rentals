@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Test\Service;
+namespace App\Tests\Service;
 
+use App\Service\FileUploader;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use PHPUnit\Framework\TestCase;
