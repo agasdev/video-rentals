@@ -7,4 +7,3 @@ App\Form\Model\DvdDto:
                 max: 50
                 minMessage: 'The title must be at least {{ limit }} characters long'
                 maxMessage: 'The title cannot be longer than {{ limit }} characters'
-                allowEmptyString: false
