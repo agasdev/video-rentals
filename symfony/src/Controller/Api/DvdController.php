@@ -51,6 +51,27 @@ class DvdController extends AbstractFOSRestController
     }
 
     /**
+     * @Rest\Get(path="/dvd/{id}", requirements={"id"="\d+"})
+     * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
+     * @param int $id
+     * @param DvdManager $dvdManager
+     * @return View
+     */
+    public function getSingleAction(
+        int $id,
+        DvdManager $dvdManager
+    ): View
+    {
+        $oDvd = $dvdManager->find($id);
+        if (!$oDvd) {
+            return View::create('Dvd not found', Response::HTTP_BAD_REQUEST);
+        }
+
+        return View::create($oDvd, Response::HTTP_BAD_REQUEST);
+    }
+
+
+    /**
      * @Rest\Post(path="/dvd/{id}", requirements={"id"="\d+"})
      * @Rest\View(serializerGroups={"dvd"}, serializerEnableMaxDepthChecks=true)
      * @param int $id
@@ -65,7 +86,6 @@ class DvdController extends AbstractFOSRestController
         DvdFormProcessor $dvdFormProcessor,
         DvdManager $dvdManager,
         Request $request
-
     ): View
     {
         $oDvd = $dvdManager->find($id);

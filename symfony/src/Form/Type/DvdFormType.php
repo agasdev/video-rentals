@@ -26,7 +26,8 @@ class DvdFormType extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults([
-            'data_class' => DvdDto::class,
+            'data_class'      => DvdDto::class,
+            'csrf_protection' => false
         ]);
     }
 
