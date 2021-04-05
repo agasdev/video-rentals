@@ -13,7 +13,12 @@ use Symfony\Component\Security\Guard\AbstractGuardAuthenticator;
 
 class TokenAuthenticator extends AbstractGuardAuthenticator
 {
-    const TOKEN = 'DVDTOK3N';
+    private $apiToken;
+
+    public function __construct(string $apiToken)
+    {
+        $this->apiToken = $apiToken;
+    }
 
     /**
      * Called on every request to decide if this authenticator should be
@@ -41,7 +46,7 @@ class TokenAuthenticator extends AbstractGuardAuthenticator
 
     public function getUser($credentials, UserProviderInterface $userProvider): ?UserInterface
     {
-        if (self::TOKEN !== $credentials) {
+        if ($this->apiToken !== $credentials) {
             return null;
         }
 
